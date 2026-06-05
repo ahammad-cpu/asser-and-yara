@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wedding",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "/Users/appleera/Downloads/asser-yara-wedding", "-p", "7788", "--no-clipboard"],
+      "port": 7788
+    }
+  ]
+}
