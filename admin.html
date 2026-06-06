@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Admin · Asser & Yara</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<style>
+  :root {
+    --burg: #6B1B2E;
+    --olive: #7A7F45;
+    --blush: #D4A0A7;
+    --ink: #0e0509;
+    --ivory: #F5F0E8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--ink);
+    color: var(--ivory);
+    font-family: 'Open Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(212,160,167,0.25);
+    border-radius: 12px;
+    padding: 48px 40px;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  }
+  h1 {
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 32px;
+    color: var(--blush);
+    margin-bottom: 8px;
+  }
+  .sub {
+    font-size: 12px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.5);
+    margin-bottom: 36px;
+  }
+  .row { margin-bottom: 20px; text-align: left; }
+  label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(212,160,167,0.8);
+    margin-bottom: 8px;
+  }
+  input {
+    width: 100%;
+    padding: 14px 16px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(212,160,167,0.3);
+    border-radius: 6px;
+    color: var(--ivory);
+    font-family: inherit;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--blush);
+  }
+  button {
+    width: 100%;
+    padding: 14px;
+    background: var(--burg);
+    color: var(--ivory);
+    border: 1px solid var(--blush);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-top: 8px;
+  }
+  button:hover { background: var(--olive); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .stats {
+    display: none;
+    margin-top: 30px;
+    text-align: left;
+  }
+  .stats.show { display: block; }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 18px 0;
+    border-bottom: 1px solid rgba(212,160,167,0.12);
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label {
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: rgba(212,160,167,0.8);
+  }
+  .stat-value {
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: 32px;
+    color: var(--ivory);
+  }
+  .stat-value.small {
+    font-size: 14px;
+    color: rgba(245,240,232,0.7);
+    font-style: normal;
+  }
+
+  .err {
+    color: #ff6b6b;
+    font-size: 13px;
+    margin-top: 12px;
+    min-height: 18px;
+  }
+  .refresh {
+    background: transparent;
+    color: rgba(212,160,167,0.7);
+    border: 1px solid rgba(212,160,167,0.3);
+    margin-top: 20px;
+    font-size: 10px;
+  }
+  .refresh:hover { background: rgba(212,160,167,0.1); color: var(--blush); }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Asser & Yara</h1>
+  <p class="sub">Admin · RSVP Stats</p>
+
+  <div id="login">
+    <div class="row">
+      <label for="key">Admin Key</label>
+      <input id="key" type="password" placeholder="Enter admin key" autocomplete="current-password">
+    </div>
+    <button id="loginBtn">Sign In</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="stats" id="stats">
+    <div class="stat-row">
+      <span class="stat-label">Total Attending</span>
+      <span class="stat-value" id="totalCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Unique Devices</span>
+      <span class="stat-value" id="uniqueCount">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Last RSVP</span>
+      <span class="stat-value small" id="lastRsvp">—</span>
+    </div>
+    <button class="refresh" id="refreshBtn">Refresh</button>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const KEY_STORE = 'asser-yara-admin-key';
+let adminKey = sessionStorage.getItem(KEY_STORE);
+
+async function loadStats() {
+  $('err').textContent = '';
+  try {
+    const res = await fetch('/api/stats?key=' + encodeURIComponent(adminKey));
+    if (res.status === 401) {
+      $('err').textContent = 'Invalid admin key';
+      $('login').style.display = 'block';
+      $('stats').classList.remove('show');
+      sessionStorage.removeItem(KEY_STORE);
+      adminKey = null;
+      return;
+    }
+    if (!res.ok) throw new Error('Server error');
+    const data = await res.json();
+    $('totalCount').textContent = data.total || 0;
+    $('uniqueCount').textContent = data.uniqueIps || 0;
+    $('lastRsvp').textContent = data.latestDate
+      ? new Date(data.latestDate).toLocaleString()
+      : 'No RSVPs yet';
+    $('login').style.display = 'none';
+    $('stats').classList.add('show');
+  } catch (e) {
+    $('err').textContent = 'Failed to load stats';
+  }
+}
+
+$('loginBtn').addEventListener('click', () => {
+  const v = $('key').value.trim();
+  if (!v) { $('err').textContent = 'Enter a key'; return; }
+  adminKey = v;
+  sessionStorage.setItem(KEY_STORE, v);
+  loadStats();
+});
+
+$('key').addEventListener('keypress', e => {
+  if (e.key === 'Enter') $('loginBtn').click();
+});
+
+$('refreshBtn').addEventListener('click', loadStats);
+
+if (adminKey) loadStats();
+</script>
+</body>
+</html>

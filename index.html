@@ -1663,14 +1663,27 @@ musicBtn.addEventListener('click', e => {
 const rsvpBtn = document.querySelector('.rsvp-btn');
 const rsvpThanks = document.querySelector('.rsvp-thanks');
 const RSVP_KEY = 'asser-yara-rsvp';
+
+// Hide button if already responded on this device
 if(rsvpBtn && localStorage.getItem(RSVP_KEY)){
   rsvpBtn.hidden = true;
   if(rsvpThanks) rsvpThanks.hidden = false;
 }
-rsvpBtn?.addEventListener('click', ()=>{
-  try{ localStorage.setItem(RSVP_KEY, String(Date.now())); }catch(e){}
+
+rsvpBtn?.addEventListener('click', async ()=>{
+  // optimistic UI — show thanks immediately
   rsvpBtn.hidden = true;
   if(rsvpThanks) rsvpThanks.hidden = false;
+  try{ localStorage.setItem(RSVP_KEY, String(Date.now())); }catch(e){}
+
+  // call server to count (deduped by IP hash)
+  try{
+    await fetch('/api/rsvp', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({})
+    });
+  } catch(e){ /* silent fail — user already sees thanks */ }
 });
 </script>
 </body>
