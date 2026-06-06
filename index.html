@@ -586,6 +586,9 @@
     /* native vertical scroll only — critical for iOS smoothness */
     html, body { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 
+    /* hide scroll indicator on mobile — was overlapping with hero date */
+    .scroll-ind { display: none !important; }
+
     /* kill background-attachment fixed (iOS doesn't support it anyway) */
     .sec-bg{
       background-attachment:scroll !important;
