@@ -1219,6 +1219,11 @@
 </main>
 
 <script>
+/* ── device detection — must be first, used throughout ── */
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isMobile = window.innerWidth <= 768 || isIOS;
+
 /* ===========================================================
    Photo URLs — swap freely
    p1 hero · p2 countdown · p3 story · p4 details · p5 gallery · p6 location+footer
@@ -1527,8 +1532,6 @@ document.querySelectorAll('.btn').forEach(b=>{
 });
 
 /* ---------- iOS fix: disable fixed background-attachment ---------- */
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const isMobile = window.innerWidth <= 768 || isIOS;
 if(isMobile){
   document.querySelectorAll('.sec-bg').forEach(el=>{
     el.style.backgroundAttachment = 'scroll';
