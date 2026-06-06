@@ -456,17 +456,58 @@
     margin:24px auto 0;
   }
 
-  /* ---------- reveal states ---------- */
-  .r,.r-left,.r-right,.r-scale{
-    opacity:0;
-    transition:opacity 1s var(--ease), transform 1.1s var(--ease);
-    will-change:opacity,transform;
+  /* ══════════════════════════════════════
+     UNIFIED FADE / REVEAL SYSTEM
+     All 4 variants share the same easing
+     and timing so the whole page breathes
+     as one animation language.
+  ══════════════════════════════════════ */
+  .r, .r-left, .r-right, .r-scale {
+    opacity: 0;
+    will-change: opacity, transform;
+    /* base transition — overridden per variant */
+    transition:
+      opacity   1.1s cubic-bezier(.16,1,.3,1),
+      transform 1.2s cubic-bezier(.16,1,.3,1);
   }
-  .r{transform:translateY(40px)}
-  .r-left{transform:translateX(-50px)}
-  .r-right{transform:translateX(50px)}
-  .r-scale{transform:scale(.94)}
-  .r.in,.r-left.in,.r-right.in,.r-scale.in{opacity:1;transform:none}
+
+  /* fade up — labels, headings, body copy */
+  .r            { transform: translateY(44px); }
+
+  /* slide in from sides — story text / photo */
+  .r-left       { transform: translateX(-56px); }
+  .r-right      { transform: translateX(56px); }
+
+  /* scale up — cards, countdown, gallery items */
+  .r-scale      { transform: scale(.93); opacity: 0; }
+
+  /* active state — same for all */
+  .r.in, .r-left.in, .r-right.in, .r-scale.in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* stagger helpers — apply to children via inline transition-delay */
+  /* .delay-1 → .delay-5 for manual staggering */
+  .delay-1 { transition-delay: .08s  !important; }
+  .delay-2 { transition-delay: .18s  !important; }
+  .delay-3 { transition-delay: .28s  !important; }
+  .delay-4 { transition-delay: .38s  !important; }
+  .delay-5 { transition-delay: .50s  !important; }
+
+  /* section photo bg: fades + scales in when section enters viewport */
+  .sec-bg {
+    opacity: 0;
+    transition: opacity 1.4s ease, transform 1.6s var(--ease);
+  }
+  section.in-view .sec-bg, footer.in-view .sec-bg {
+    opacity: 1;
+  }
+
+  /* section overlay: subtle fade for cinematic dip */
+  .sec-overlay {
+    transition: opacity 1.2s ease;
+  }
 
   /* ---------- LIGHTBOX ---------- */
   #lightbox{
@@ -605,10 +646,15 @@
     50%  { transform: scale(1.12) translate3d(-1.5%, -1.5%, 0); }
     100% { transform: scale(1.05) translate3d(0,0,0); }
   }
+  /* Ken Burns only starts after bg fades in */
   section.in-view .sec-bg{
+    opacity: 1;
     animation: kenBurns 28s var(--ease) infinite;
   }
-  footer .sec-bg{ animation: kenBurns 28s var(--ease) infinite; }
+  footer.in-view .sec-bg{
+    opacity: 1;
+    animation: kenBurns 28s var(--ease) infinite;
+  }
 
   /* wrap drift — content scrolls slightly faster than the bg */
   section .wrap{
@@ -1355,10 +1401,10 @@ const io = new IntersectionObserver((entries)=>{
       io.unobserve(e.target);
     }
   });
-}, {threshold:.16, rootMargin:'0px 0px -8% 0px'});
+}, {threshold:.13, rootMargin:'0px 0px -6% 0px'});
 document.querySelectorAll('.r,.r-left,.r-right,.r-scale').forEach(el=>io.observe(el));
 
-/* per-section bg scale trigger */
+/* per-section bg fade + scale trigger */
 const secIO = new IntersectionObserver((entries)=>{
   entries.forEach(e=>{
     if(e.isIntersecting){
@@ -1366,7 +1412,7 @@ const secIO = new IntersectionObserver((entries)=>{
       secIO.unobserve(e.target);
     }
   });
-}, {threshold:.12});
+}, {threshold:.08});
 document.querySelectorAll('section, footer').forEach(el=>secIO.observe(el));
 
 /* Photo wipes */
