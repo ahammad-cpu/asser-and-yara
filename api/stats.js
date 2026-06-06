@@ -1,9 +1,8 @@
 /**
  * GET /api/stats?key=<ADMIN_KEY>
- * Returns the total RSVP count.
- * Requires admin key to prevent public access.
+ * Returns total RSVP count + last RSVP timestamp.
  */
-import { kv } from '@vercel/kv';
+import { redis } from './_redis.js';
 
 const ADMIN_KEY = process.env.ADMIN_KEY || 'asser-yara-2026';
 
@@ -13,15 +12,16 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  if (!redis) {
+    return res.status(500).json({ error: 'Database not configured' });
+  }
+
   try {
-    const total = (await kv.get('rsvp:total')) || 0;
-
-    // Get all rsvp:ip:* keys to count unique IPs and get last timestamp
-    const keys = await kv.keys('rsvp:ip:*');
-    const lastTimestamps = await Promise.all(keys.map(k => kv.get(k)));
-
-    const timestamps = lastTimestamps.filter(Boolean).sort((a, b) => b - a);
-    const latest = timestamps[0] || null;
+    const total = (await redis.get('rsvp:total')) || 0;
+    const keys = await redis.keys('rsvp:ip:*');
+    const timestamps = await Promise.all(keys.map(k => redis.get(k)));
+    const sortedTs = timestamps.filter(Boolean).sort((a, b) => b - a);
+    const latest = sortedTs[0] || null;
 
     return res.status(200).json({
       total,

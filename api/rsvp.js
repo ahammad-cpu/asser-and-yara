@@ -4,8 +4,8 @@
  * Uses hashed IP to dedupe (no personal data stored).
  * Returns { ok, alreadyCounted, total }
  */
-import { kv } from '@vercel/kv';
 import crypto from 'crypto';
+import { redis } from './_redis.js';
 
 const SALT = process.env.IP_SALT || 'asser-yara-2026-salt';
 
@@ -28,22 +28,23 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  if (!redis) {
+    return res.status(500).json({ error: 'Database not configured' });
+  }
+
   try {
     const ip = getIp(req);
     const hash = hashIp(ip);
     const key = `rsvp:ip:${hash}`;
 
-    // Check if already counted
-    const exists = await kv.get(key);
+    const exists = await redis.get(key);
     if (exists) {
-      const total = (await kv.get('rsvp:total')) || 0;
+      const total = (await redis.get('rsvp:total')) || 0;
       return res.status(200).json({ ok: true, alreadyCounted: true, total });
     }
 
-    // Record this IP with timestamp
-    await kv.set(key, Date.now());
-    // Increment global counter
-    const total = await kv.incr('rsvp:total');
+    await redis.set(key, Date.now());
+    const total = await redis.incr('rsvp:total');
 
     return res.status(200).json({ ok: true, alreadyCounted: false, total });
   } catch (err) {
