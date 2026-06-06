@@ -1531,69 +1531,52 @@ setTimeout(()=>{ const i = document.getElementById('iris'); if(i) i.remove(); },
 
 /* ══════════════════════════════════════════
    MUSIC
-   Strategy:
-   1. Try unmuted autoplay on load (works on desktop Chrome/Firefox)
-   2. If browser blocks it (iOS/Safari) → start MUTED silently
-   3. On FIRST TOUCH/CLICK ANYWHERE → unmute automatically
-   4. Music button toggles pause/play after unmuted
+   — Page loads → audio plays MUTED (always works on iOS)
+   — FIRST TOUCH/SCROLL/CLICK anywhere → unmute + fade in
+   — Music button → pause / play toggle after that
 ══════════════════════════════════════════ */
 const audio    = document.getElementById('bg-music');
 const musicBtn = document.getElementById('music-btn');
-let unmuted = false;
+let unlocked   = false;
 
-function fadeVolume(target){
-  let v = 0;
+/* Step 1: start muted — guaranteed to work on every browser */
+audio.muted  = true;
+audio.volume = 0.65;
+audio.play().catch(()=>{});
+
+/* Step 2: unlock on first ANY user gesture */
+function unlock(){
+  if(unlocked) return;
+  unlocked = true;
+
+  // unmute and fade volume in
+  audio.muted  = false;
   audio.volume = 0;
-  const t = setInterval(()=>{
-    v = Math.min(v + 0.025, target);
-    audio.volume = v;
-    if(v >= target) clearInterval(t);
-  }, 80);
-}
-
-function markUnmuted(){
-  unmuted = true;
-  musicBtn.classList.add('unmuted');
-  musicBtn.setAttribute('aria-label','Pause music');
-}
-
-function unmuteAndPlay(){
-  if(unmuted) return;
-  audio.muted = false;
-  audio.play().then(()=>{
-    fadeVolume(0.65);
-    markUnmuted();
-  }).catch(()=>{});
-}
-
-// 1. Try unmuted play immediately (desktop will succeed)
-audio.muted = false;
-audio.volume = 0;
-audio.play().then(()=>{
-  fadeVolume(0.65);
-  markUnmuted();
-}).catch(()=>{
-  // Desktop blocked OR mobile — start muted silently
-  audio.muted = true;
-  audio.volume = 0.65;
   audio.play().catch(()=>{});
 
-  // 2. Unmute on FIRST interaction anywhere on the page
-  const evts = ['touchstart','touchend','click','pointerdown'];
-  function onFirstTouch(){
-    unmuteAndPlay();
-    evts.forEach(e => document.removeEventListener(e, onFirstTouch));
-  }
-  evts.forEach(e => document.addEventListener(e, onFirstTouch, {once:false, passive:true}));
-});
+  let v = 0;
+  const fade = setInterval(()=>{
+    v = Math.min(v + 0.03, 0.65);
+    audio.volume = v;
+    if(v >= 0.65) clearInterval(fade);
+  }, 60);
 
-// Music button — pause / resume toggle
-musicBtn.addEventListener('click', (e)=>{
+  // update button UI
+  musicBtn.classList.add('unmuted');
+
+  // remove all unlock listeners — they're done
+  ['touchstart','touchend','pointerdown','click','scroll','keydown']
+    .forEach(ev => document.removeEventListener(ev, unlock, true));
+}
+
+/* attach with capture:true so it fires before anything else on the page */
+['touchstart','touchend','pointerdown','click','scroll','keydown']
+  .forEach(ev => document.addEventListener(ev, unlock, { capture:true, passive:true, once:false }));
+
+/* Music button: pause / play toggle */
+musicBtn.addEventListener('click', e => {
   e.stopPropagation();
-  if(!unmuted){
-    unmuteAndPlay();
-    return;
-  }
+  if(!unlocked){ unlock(); return; }
   if(audio.paused){
     audio.play().catch(()=>{});
     musicBtn.querySelector('.state-playing .music-icon').textContent = '♪';
