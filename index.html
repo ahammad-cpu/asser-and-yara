@@ -648,8 +648,8 @@
     .hero-rule, footer .rule, .divider .glyph { animation: none !important; }
     #music-btn { animation: none !important; }
 
-    /* hide petals canvas on mobile — biggest performance killer */
-    #petals { display: none !important; }
+    /* petals stay visible on mobile (reduced count handled in JS) */
+    #petals { opacity: .7; }
 
     /* simplify text shadow */
     .hero h1, .sec-head h2 { text-shadow: 0 2px 12px rgba(0,0,0,.4); }
@@ -1360,9 +1360,9 @@ if(!isMobile){
 }
 
 /* ===========================================================
-   Petals — desktop only (skip entirely on mobile to save battery)
+   Petals — runs everywhere (count is reduced on mobile)
    =========================================================== */
-if(!isMobile){
+{
 const canvas = document.getElementById('petals');
 const ctx = canvas.getContext('2d');
 let W,H,DPR;
@@ -1377,7 +1377,7 @@ resize();
 window.addEventListener('resize', resize);
 
 const PETAL_COLORS = ['rgba(212,160,167,', 'rgba(122,127,69,', 'rgba(245,240,232,'];
-const N = isMobile ? 10 : 36; /* fewer petals on mobile = smoother scroll */
+const N = isMobile ? 14 : 36; /* fewer petals on mobile = smoother scroll */
 const petals = [];
 function spawn(initial=false){
   return {
@@ -1422,7 +1422,7 @@ function animatePetals(){
   requestAnimationFrame(animatePetals);
 }
 animatePetals();
-} /* end !isMobile */
+} /* end petals scope */
 
 /* ===========================================================
    Hero parallax — desktop only, mobile uses static bg
