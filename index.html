@@ -574,18 +574,34 @@
 
   /* ── TABLET (768px) ── */
   @media (max-width:768px){
-    /* allow native vertical scroll — critical for iOS smoothness */
-    html, body { touch-action: pan-y; }
+    /* native vertical scroll only — critical for iOS smoothness */
+    html, body { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 
+    /* kill background-attachment fixed (iOS doesn't support it anyway) */
     .sec-bg{
       background-attachment:scroll !important;
       position:absolute !important;
+      animation: none !important;
+      transform: none !important;
     }
-    /* disable expensive blur effects on mobile */
-    .card, .countdown .cd-box, #music-btn {
+
+    /* kill all backdrop-filter — most expensive GPU operation on iOS */
+    .card, .countdown .cd-box, #music-btn, .rsvp-card, .map-wrap {
       backdrop-filter: none !important;
       -webkit-backdrop-filter: none !important;
     }
+
+    /* kill infinite CSS animations that repaint continuously */
+    .hero h1 { animation: none !important; }
+    .hero-rule, footer .rule, .divider .glyph { animation: none !important; }
+    #music-btn { animation: none !important; }
+
+    /* hide petals canvas on mobile — biggest performance killer */
+    #petals { display: none !important; }
+
+    /* simplify text shadow */
+    .hero h1, .sec-head h2 { text-shadow: 0 2px 12px rgba(0,0,0,.4); }
+
     section{ padding:80px 0; }
     .hero h1{ font-size:clamp(50px,15vw,88px); }
     .hero-meta{ margin-top:28px; gap:10px; }
@@ -1295,8 +1311,9 @@ if(!isMobile){
 }
 
 /* ===========================================================
-   Petals — global drifting canvas
+   Petals — desktop only (skip entirely on mobile to save battery)
    =========================================================== */
+if(!isMobile){
 const canvas = document.getElementById('petals');
 const ctx = canvas.getContext('2d');
 let W,H,DPR;
@@ -1356,17 +1373,24 @@ function animatePetals(){
   requestAnimationFrame(animatePetals);
 }
 animatePetals();
+} /* end !isMobile */
 
 /* ===========================================================
-   Hero parallax (0.22x)
+   Hero parallax — desktop only, mobile uses static bg
    =========================================================== */
-const heroP = document.getElementById('heroParallax');
-function parallax(){
-  const y = window.scrollY;
-  heroP.style.transform = `translate3d(0, ${y*0.22}px, 0)`;
-  requestAnimationFrame(parallax);
+if(!isMobile){
+  const heroP = document.getElementById('heroParallax');
+  let pTicking = false;
+  window.addEventListener('scroll', ()=>{
+    if(!pTicking){
+      pTicking = true;
+      requestAnimationFrame(()=>{
+        heroP.style.transform = `translate3d(0, ${window.scrollY*0.22}px, 0)`;
+        pTicking = false;
+      });
+    }
+  }, {passive:true});
 }
-parallax();
 
 /* ===========================================================
    Countdown
