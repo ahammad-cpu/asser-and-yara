@@ -574,9 +574,17 @@
 
   /* ── TABLET (768px) ── */
   @media (max-width:768px){
+    /* allow native vertical scroll — critical for iOS smoothness */
+    html, body { touch-action: pan-y; }
+
     .sec-bg{
       background-attachment:scroll !important;
       position:absolute !important;
+    }
+    /* disable expensive blur effects on mobile */
+    .card, .countdown .cd-box, #music-btn {
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
     }
     section{ padding:80px 0; }
     .hero h1{ font-size:clamp(50px,15vw,88px); }
@@ -1258,27 +1266,28 @@ document.addEventListener('scroll', onScroll, {passive:true});
 onScroll();
 
 /* ===========================================================
-   Custom cursor
+   Custom cursor — desktop only, skip RAF on touch devices
    =========================================================== */
-const dot = document.getElementById('cur-dot');
-const ring = document.getElementById('cur-ring');
-let mx=window.innerWidth/2, my=window.innerHeight/2;
-let rx=mx, ry=my;
-window.addEventListener('mousemove', e=>{
-  mx=e.clientX; my=e.clientY;
-  dot.style.transform = `translate(${mx}px,${my}px) translate(-50%,-50%)`;
-});
-function tickCursor(){
-  rx += (mx-rx)*.18;
-  ry += (my-ry)*.18;
-  ring.style.transform = `translate(${rx}px,${ry}px) translate(-50%,-50%)`;
-  requestAnimationFrame(tickCursor);
+if(!isMobile){
+  const dot = document.getElementById('cur-dot');
+  const ring = document.getElementById('cur-ring');
+  let mx=window.innerWidth/2, my=window.innerHeight/2;
+  let rx=mx, ry=my;
+  window.addEventListener('mousemove', e=>{
+    mx=e.clientX; my=e.clientY;
+    dot.style.transform = `translate(${mx}px,${my}px) translate(-50%,-50%)`;
+  });
+  function tickCursor(){
+    rx += (mx-rx)*.18; ry += (my-ry)*.18;
+    ring.style.transform = `translate(${rx}px,${ry}px) translate(-50%,-50%)`;
+    requestAnimationFrame(tickCursor);
+  }
+  tickCursor();
+  document.querySelectorAll('a,button,.g-item,.card').forEach(el=>{
+    el.addEventListener('mouseenter', ()=>document.body.classList.add('cur-hover'));
+    el.addEventListener('mouseleave', ()=>document.body.classList.remove('cur-hover'));
+  });
 }
-tickCursor();
-document.querySelectorAll('a,button,.g-item,.card').forEach(el=>{
-  el.addEventListener('mouseenter', ()=>document.body.classList.add('cur-hover'));
-  el.addEventListener('mouseleave', ()=>document.body.classList.remove('cur-hover'));
-});
 
 /* ===========================================================
    Petals — global drifting canvas
@@ -1297,7 +1306,7 @@ resize();
 window.addEventListener('resize', resize);
 
 const PETAL_COLORS = ['rgba(212,160,167,', 'rgba(122,127,69,', 'rgba(245,240,232,'];
-const N = window.innerWidth < 600 ? 22 : 42;
+const N = isMobile ? 10 : 36; /* fewer petals on mobile = smoother scroll */
 const petals = [];
 function spawn(initial=false){
   return {
@@ -1484,21 +1493,25 @@ const divIO = new IntersectionObserver((entries)=>{
 document.querySelectorAll('.divider').forEach(d=>divIO.observe(d));
 
 /* ---------- per-section scroll progress --p ---------- */
-const sections = [...document.querySelectorAll('section, footer')];
-function updateSectionProgress(){
-  const vh = window.innerHeight;
-  for(const s of sections){
-    const r = s.getBoundingClientRect();
-    // 0 when section bottom is at viewport top, 1 when section top is at viewport bottom
-    // smooth easing across the span
-    const span = r.height + vh;
-    const raw = 1 - ((r.bottom) / span);  // 0..1 across full crossing
-    const p = Math.max(0, Math.min(1, raw));
-    s.style.setProperty('--p', p.toFixed(3));
+/* On mobile: disabled entirely — too expensive (getBoundingClientRect every frame) */
+if(!isMobile){
+  const sections = [...document.querySelectorAll('section, footer')];
+  let rafPending = false;
+  function updateSectionProgress(){
+    const vh = window.innerHeight;
+    for(const s of sections){
+      const r = s.getBoundingClientRect();
+      const span = r.height + vh;
+      const raw = 1 - (r.bottom / span);
+      s.style.setProperty('--p', Math.max(0,Math.min(1,raw)).toFixed(3));
+    }
+    rafPending = false;
   }
-  requestAnimationFrame(updateSectionProgress);
+  window.addEventListener('scroll', ()=>{
+    if(!rafPending){ rafPending=true; requestAnimationFrame(updateSectionProgress); }
+  }, {passive:true});
+  updateSectionProgress();
 }
-requestAnimationFrame(updateSectionProgress);
 
 /* countdown flip is wired directly inside tick() via setCD() */
 
