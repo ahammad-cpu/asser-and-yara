@@ -786,24 +786,19 @@
   }
   .invite-script em{ color:var(--blush); font-style:italic; }
 
-  /* circular monogram — contains the Arabic calligraphy mark */
+  /* monogram — Arabic calligraphy mark, no circle */
   .monogram{
     width:108px; height:108px;
-    border:1px solid rgba(201,169,97,.7);
-    border-radius:50%;
+    border:none;
+    border-radius:0;
     display:flex; align-items:center; justify-content:center;
     margin:0 auto 30px;
     position:relative;
     opacity:0; transform:scale(.82);
     animation:monoIn 1.1s var(--ease) .5s forwards;
-    box-shadow: 0 0 30px rgba(201,169,97,.18), inset 0 0 30px rgba(201,169,97,.08);
+    box-shadow:none;
   }
-  .monogram::before{
-    content:""; position:absolute; inset:5px;
-    border:1px solid rgba(212,160,167,.3);
-    border-radius:50%;
-    pointer-events:none;
-  }
+  .monogram::before{ display:none; }
   .monogram span{ display:inline-block; line-height:1; padding-bottom:6px; }
   .monogram i{
     font-style:normal; color:var(--gold);
