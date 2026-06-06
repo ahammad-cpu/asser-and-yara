@@ -2,7 +2,7 @@
  * GET /api/stats?key=<ADMIN_KEY>
  * Returns total RSVP count + last RSVP timestamp.
  */
-import { redis } from './_redis.js';
+import { redis, diagnose } from './_redis.js';
 
 const ADMIN_KEY = process.env.ADMIN_KEY || 'asser-yara-2026';
 
@@ -10,10 +10,6 @@ export default async function handler(req, res) {
   const key = req.query.key || req.headers['x-admin-key'];
   if (key !== ADMIN_KEY) {
     return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  if (!redis) {
-    return res.status(500).json({ error: 'Database not configured' });
   }
 
   try {
@@ -31,6 +27,10 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('Stats error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({
+      error: 'Database error',
+      message: err.message,
+      diagnostic: diagnose(),
+    });
   }
 }

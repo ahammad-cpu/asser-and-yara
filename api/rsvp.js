@@ -2,10 +2,9 @@
  * POST /api/rsvp
  * Records an "I will attend" click.
  * Uses hashed IP to dedupe (no personal data stored).
- * Returns { ok, alreadyCounted, total }
  */
 import crypto from 'crypto';
-import { redis } from './_redis.js';
+import { redis, diagnose } from './_redis.js';
 
 const SALT = process.env.IP_SALT || 'asser-yara-2026-salt';
 
@@ -28,10 +27,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!redis) {
-    return res.status(500).json({ error: 'Database not configured' });
-  }
-
   try {
     const ip = getIp(req);
     const hash = hashIp(ip);
@@ -49,6 +44,10 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, alreadyCounted: false, total });
   } catch (err) {
     console.error('RSVP error:', err);
-    return res.status(500).json({ error: 'Server error' });
+    return res.status(500).json({
+      error: 'Database error',
+      message: err.message,
+      diagnostic: diagnose(),
+    });
   }
 }
