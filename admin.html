@@ -169,6 +169,7 @@
       <span class="stat-value small" id="lastRsvp">—</span>
     </div>
     <button class="refresh" id="refreshBtn">Refresh</button>
+    <button class="refresh" id="resetBtn" style="border-color:rgba(255,107,107,.3);color:rgba(255,107,107,.7);margin-top:8px;">Reset All RSVPs</button>
   </div>
 </div>
 
@@ -216,6 +217,25 @@ $('key').addEventListener('keypress', e => {
 });
 
 $('refreshBtn').addEventListener('click', loadStats);
+
+$('resetBtn').addEventListener('click', async () => {
+  if (!confirm('Reset ALL RSVPs to 0? This cannot be undone.')) return;
+  try {
+    const res = await fetch('/api/reset?key=' + encodeURIComponent(adminKey), {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.ok) {
+      $('err').textContent = '';
+      alert('Cleared ' + data.cleared + ' RSVPs.');
+      loadStats();
+    } else {
+      $('err').textContent = data.message || 'Reset failed';
+    }
+  } catch (e) {
+    $('err').textContent = 'Reset failed';
+  }
+});
 
 if (adminKey) loadStats();
 </script>
