@@ -1625,53 +1625,54 @@ if(isMobile){
 setTimeout(()=>{ const i = document.getElementById('iris'); if(i) i.remove(); }, 2000);
 
 /* ══════════════════════════════════════════
-   MUSIC
-   — Page loads → audio plays MUTED (always works on iOS)
-   — FIRST TOUCH/SCROLL/CLICK anywhere → unmute + fade in
-   — Music button → pause / play toggle after that
+   MUSIC — iOS / Android / Desktop reliable
+   — start MUTED (always allowed)
+   — first real user gesture (tap/click) → unmute & play synchronously
+   — music button toggles after that
 ══════════════════════════════════════════ */
 const audio    = document.getElementById('bg-music');
 const musicBtn = document.getElementById('music-btn');
 let unlocked   = false;
 
-/* Step 1: start muted — guaranteed to work on every browser */
-audio.muted  = true;
-audio.volume = 0.65;
+// iOS Safari ignores `volume` so we go straight to muted=false (no fade)
+// Try muted autoplay (works on all platforms)
+audio.muted = true;
 audio.play().catch(()=>{});
 
-/* Step 2: unlock on first ANY user gesture */
-function unlock(){
+function unlockMusic(){
   if(unlocked) return;
   unlocked = true;
-
-  // unmute and fade volume in
-  audio.muted  = false;
-  audio.volume = 0;
-  audio.play().catch(()=>{});
-
-  let v = 0;
-  const fade = setInterval(()=>{
-    v = Math.min(v + 0.03, 0.65);
-    audio.volume = v;
-    if(v >= 0.65) clearInterval(fade);
-  }, 60);
-
-  // update button UI
+  audio.muted = false;
+  // synchronously play — must be inside the gesture
+  const p = audio.play();
+  if(p && p.catch) p.catch(()=>{});
   musicBtn.classList.add('unmuted');
 
-  // remove all unlock listeners — they're done
-  ['touchstart','touchend','pointerdown','click','scroll','keydown']
-    .forEach(ev => document.removeEventListener(ev, unlock, true));
+  // remove all unlock listeners
+  ['touchend','click','pointerup'].forEach(ev =>
+    document.removeEventListener(ev, unlockMusic, true)
+  );
 }
 
-/* attach with capture:true so it fires before anything else on the page */
-['touchstart','touchend','pointerdown','click','scroll','keydown']
-  .forEach(ev => document.addEventListener(ev, unlock, { capture:true, passive:true, once:false }));
+// Use touchend / click / pointerup — these count as real user gestures on iOS
+// scroll does NOT count on iOS — removed
+['touchend','click','pointerup'].forEach(ev =>
+  document.addEventListener(ev, unlockMusic, { capture:true, passive:true })
+);
 
-/* Music button: pause / play toggle */
+/* Music button — direct play/pause toggle */
 musicBtn.addEventListener('click', e => {
   e.stopPropagation();
-  if(!unlocked){ unlock(); return; }
+  // First press: unlock
+  if(!unlocked){
+    unlocked = true;
+    audio.muted = false;
+    const p = audio.play();
+    if(p && p.catch) p.catch(()=>{});
+    musicBtn.classList.add('unmuted');
+    return;
+  }
+  // Toggle
   if(audio.paused){
     audio.play().catch(()=>{});
     musicBtn.querySelector('.state-playing .music-icon').textContent = '♪';
