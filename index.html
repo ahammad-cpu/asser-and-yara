@@ -1634,30 +1634,61 @@ const audio    = document.getElementById('bg-music');
 const musicBtn = document.getElementById('music-btn');
 let unlocked   = false;
 
-// Make sure muted autoplay starts
+// Start muted autoplay (allowed everywhere)
 audio.muted = true;
-const tryPlay = () => audio.play().catch(()=>{});
-tryPlay();
+audio.play().catch(()=>{});
 
-function unmuteOnTap(){
-  if(unlocked) return;
-  unlocked = true;
-  audio.muted = false;
-  // if it stopped, resume
-  if(audio.paused){ tryPlay(); }
-  musicBtn.classList.add('unmuted');
+// success = audio is actually playing AND unmuted
+function musicIsOn(){
+  return !audio.paused && !audio.muted;
 }
 
-// Simple bubble-phase listeners on document.body — most reliable on iOS
-document.addEventListener('touchend', unmuteOnTap, { once:true });
-document.addEventListener('click',    unmuteOnTap, { once:true });
+function attemptUnmute(){
+  if(unlocked) return;
+
+  audio.muted = false;
+  audio.volume = 1;
+
+  if(audio.paused){
+    const p = audio.play();
+    if(p && p.then){
+      p.then(()=>{
+        if(musicIsOn()) markUnlocked();
+      }).catch(()=>{ audio.muted = true; }); // failed — stay muted, retry on next gesture
+    }
+  } else {
+    // was already playing muted — unmute is enough
+    if(musicIsOn()) markUnlocked();
+  }
+}
+
+function markUnlocked(){
+  unlocked = true;
+  musicBtn.classList.add('unmuted');
+  GESTURES.forEach(ev => window.removeEventListener(ev, attemptUnmute, true));
+}
+
+// Listen to EVERY kind of gesture incl. scroll/touchstart — keep retrying
+// until music is genuinely audible. NOT once:true.
+const GESTURES = ['touchstart','touchend','touchmove','pointerdown','pointerup','click','scroll','keydown'];
+GESTURES.forEach(ev =>
+  window.addEventListener(ev, attemptUnmute, { capture:true, passive:true })
+);
+
+// Safety: also retry every second for the first 15s in case a gesture
+// happened but audio element wasn't ready yet
+let retries = 0;
+const retryTimer = setInterval(()=>{
+  if(unlocked || ++retries > 15){ clearInterval(retryTimer); return; }
+  if(!audio.paused && !audio.muted){ markUnlocked(); }
+}, 1000);
 
 /* Music button toggle */
 musicBtn.addEventListener('click', e => {
   e.stopPropagation();
   // Always unmute on first press (in case the doc listener didn't fire yet)
   if(!unlocked){
-    unmuteOnTap();
+    attemptUnmute();
     return;
   }
   if(audio.paused){
