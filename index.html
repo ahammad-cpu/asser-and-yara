@@ -1139,7 +1139,7 @@
 <body>
 
 <!-- ══ BACKGROUND MUSIC — starts muted, tap button to unmute ══ -->
-<audio id="bg-music" loop preload="auto" playsinline muted>
+<audio id="bg-music" loop preload="auto" playsinline crossorigin="anonymous">
   <source src="https://cmkotnxgadncsvhumfur.supabase.co/storage/v1/object/public/musics/Farha.mp3" type="audio/mpeg">
 </audio>
 
@@ -1625,54 +1625,71 @@ if(isMobile){
 setTimeout(()=>{ const i = document.getElementById('iris'); if(i) i.remove(); }, 2000);
 
 /* ══════════════════════════════════════════
-   MUSIC — iOS / Android / Desktop reliable
-   — start MUTED (always allowed)
-   — first real user gesture (tap/click) → unmute & play synchronously
-   — music button toggles after that
+   MUSIC — bulletproof iOS + Android + Desktop
+   Strategy: never autoplay. Just play unmuted
+   the moment user touches/clicks ANYWHERE.
 ══════════════════════════════════════════ */
 const audio    = document.getElementById('bg-music');
 const musicBtn = document.getElementById('music-btn');
 let unlocked   = false;
 
-// iOS Safari ignores `volume` so we go straight to muted=false (no fade)
-// Try muted autoplay (works on all platforms)
-audio.muted = true;
-audio.play().catch(()=>{});
+// Preload but DO NOT autoplay — bypass all autoplay restrictions
+audio.muted = false;
+audio.volume = 1;
+try { audio.load(); } catch(e){}
 
-function unlockMusic(){
-  if(unlocked) return;
-  unlocked = true;
+function startMusic(){
+  if(unlocked) return true;
+  // Ensure unmuted state
   audio.muted = false;
-  // synchronously play — must be inside the gesture
-  const p = audio.play();
-  if(p && p.catch) p.catch(()=>{});
-  musicBtn.classList.add('unmuted');
+  audio.removeAttribute('muted');
+  audio.volume = 1;
 
-  // remove all unlock listeners
-  ['touchend','click','pointerup'].forEach(ev =>
-    document.removeEventListener(ev, unlockMusic, true)
+  // SYNCHRONOUSLY play inside the gesture handler
+  let p;
+  try { p = audio.play(); } catch(e){ return false; }
+
+  if(p && typeof p.then === 'function'){
+    p.then(()=>{
+      unlocked = true;
+      musicBtn.classList.add('unmuted');
+    }).catch((err)=>{
+      // play rejected — retry once with a tiny delay
+      setTimeout(()=>{
+        audio.muted = false;
+        audio.play().then(()=>{
+          unlocked = true;
+          musicBtn.classList.add('unmuted');
+        }).catch(()=>{});
+      }, 50);
+    });
+  } else {
+    // Old browsers — no promise, assume success
+    unlocked = true;
+    musicBtn.classList.add('unmuted');
+  }
+  return true;
+}
+
+// One-shot listener — fires on FIRST real gesture, then removes itself
+function firstGestureHandler(){
+  startMusic();
+  ['touchend','pointerup','click'].forEach(ev =>
+    document.removeEventListener(ev, firstGestureHandler, true)
   );
 }
 
-// Use touchend / click / pointerup — these count as real user gestures on iOS
-// scroll does NOT count on iOS — removed
-['touchend','click','pointerup'].forEach(ev =>
-  document.addEventListener(ev, unlockMusic, { capture:true, passive:true })
+['touchend','pointerup','click'].forEach(ev =>
+  document.addEventListener(ev, firstGestureHandler, { capture:true })
 );
 
-/* Music button — direct play/pause toggle */
+/* Music button — direct toggle */
 musicBtn.addEventListener('click', e => {
   e.stopPropagation();
-  // First press: unlock
   if(!unlocked){
-    unlocked = true;
-    audio.muted = false;
-    const p = audio.play();
-    if(p && p.catch) p.catch(()=>{});
-    musicBtn.classList.add('unmuted');
+    startMusic();
     return;
   }
-  // Toggle
   if(audio.paused){
     audio.play().catch(()=>{});
     musicBtn.querySelector('.state-playing .music-icon').textContent = '♪';
